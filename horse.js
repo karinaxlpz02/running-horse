@@ -53,13 +53,18 @@ function shape(t) {
     m.bezierCurveTo(270, 234 + i, 217, 252 + Math.sin(t - i * 0.12) * 22, 99 + i * 3, 276 + i * 3 + Math.sin(t - i * 0.16) * 25); m.stroke();
   }
   // Back, barrel, flank, shoulder and chest form a single continuous silhouette.
-  m.fillStyle = '#e8e8e8';
+  const barrel = m.createLinearGradient(0, 230, 0, 370);
+  barrel.addColorStop(0, '#fafafa'); barrel.addColorStop(0.45, '#dfdfdf'); barrel.addColorStop(1, '#777777');
+  m.fillStyle = barrel;
   path('M 319 257 C 334 223 375 222 407 236 C 452 252 503 247 554 236 C 583 224 600 222 622 237 C 652 252 664 288 651 320 C 639 348 617 357 589 353 C 559 356 525 365 486 365 C 449 365 425 347 398 341 C 363 353 332 334 321 305 C 315 289 310 274 319 257 Z');
   const muscle = m.createRadialGradient(574, 280, 9, 570, 294, 95);
   muscle.addColorStop(0, '#ffffff'); muscle.addColorStop(1, '#aaaaaa');
   m.fillStyle = muscle; oval(580, 289, 58, 65, -0.3);
-  m.fillStyle = '#dedede'; oval(362, 280, 44, 49, 0.2);
-  // Long sloping neck, defined throat latch, cheek and tapered muzzle.
+  const haunch = m.createRadialGradient(347, 263, 5, 364, 284, 54);
+  haunch.addColorStop(0, '#ffffff'); haunch.addColorStop(1, '#888888');
+  m.fillStyle = haunch; oval(362, 280, 44, 49, 0.2);
+  // A forward-carried head and sloping neck retain natural running proportions.
+  m.save(); m.translate(60, 65); m.scale(0.92, 0.80);
   m.fillStyle = '#eeeeee';
   path('M 548 258 C 582 219 604 164 643 131 C 658 119 682 118 698 131 L 715 155 C 695 172 682 181 673 205 C 659 237 657 276 638 315 C 624 339 601 343 589 326 C 606 290 599 266 582 257 Z');
   path('M 662 134 C 671 114 698 117 713 131 C 724 143 729 151 742 166 L 784 198 C 792 205 793 215 785 223 C 777 231 760 229 748 220 L 712 199 C 690 200 674 188 671 170 Z');
@@ -72,12 +77,14 @@ function shape(t) {
     m.lineWidth = 3; m.beginPath(); m.moveTo(x, y);
     m.bezierCurveTo(x - 17, y - 9, x - 30, y + 4, x - 39 - Math.sin(t - u * 4) * 10, y + 5 + Math.cos(t + u * 5) * 9); m.stroke();
   }
+  m.restore();
   leg(t, true, false); leg(t, false, false);
+  m.save(); m.translate(60, 65); m.scale(0.92, 0.80);
   // Small negative spaces preserve the eye, nostril and mouth at glyph resolution.
   m.globalCompositeOperation = 'destination-out';
   oval(716, 155, 4.4, 3.5, -0.2); oval(777, 207, 4, 3, 0.5);
   m.lineWidth = 2.8; m.beginPath(); m.moveTo(765, 220); m.lineTo(784, 221); m.stroke();
-  m.globalCompositeOperation = 'source-over'; m.restore();
+  m.globalCompositeOperation = 'source-over'; m.restore(); m.restore();
 }
 function render(now) {
   const delta = previous ? Math.min((now - previous) / 1000, 0.05) : 0;
@@ -87,20 +94,21 @@ function render(now) {
   if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
   }
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#858585'; ctx.fillRect(0, 0, width, height);
   shape(time);
   const data = m.getImageData(0, 0, 1000, 650).data;
   const scale = Math.min(width * 0.94 / 730, height * 0.88 / 470);
   const ox = width / 2 - 447 * scale, oy = height / 2 - 318 * scale;
   ctx.fillStyle = '#ff6500'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `bold ${7.2 * scale}px monospace`;
+  ctx.font = `bold ${8 * scale}px monospace`;
   for (let y = 75; y < 575; y += 6) {
     for (let x = 65; x < 815; x += 4.5) {
       const at = (y * 1000 + Math.floor(x)) * 4;
       if (data[at + 3] < 110) continue;
       const texture = Math.sin(x * 0.071 + y * 0.039) * 0.5 + 0.5;
       const density = data[at] / 255;
-      const index = Math.min(glyphs.length - 1, Math.floor(2 + density * 5 + texture * 3));
+      const index = Math.min(glyphs.length - 1, Math.floor(1 + density * 7 + texture * 1.5));
       ctx.globalAlpha = 0.65 + density * 0.35;
       ctx.fillText(glyphs[index], ox + x * scale, oy + y * scale);
     }
