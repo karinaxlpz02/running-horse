@@ -12,8 +12,10 @@ const glyphs = ' .:;+=xX%#@';
 const variations = ['Galloping horse', 'Long horse', 'Wide horse', 'Tiny head horse', 'Noodle horse', 'Upside-down horse'];
 let variation = 0;
 function nextHorse() {
-  variation = (variation + 1) % variations.length;
-  canvas.setAttribute('aria-label', variations[variation] + '. Click or press Enter for the next horse.');
+  const last = JSON.stringify(outfit);
+  do { newOutfit(); } while (JSON.stringify(outfit) === last);
+  variation = Math.random() < 0.65 ? 0 : 1 + Math.floor(Math.random() * 4);
+  canvas.setAttribute('aria-label', variations[variation] + ' with ' + outfit.shoes + ', ' + outfit.hat + ', ' + outfit.prop + ' and ' + outfit.back + '. Click or press Enter for another random horse.');
 }
 canvas.addEventListener('click', nextHorse);
 canvas.addEventListener('keydown', event => {
@@ -67,7 +69,7 @@ function leg(t, rear, far) {
   segment(knee, ankle, rear ? 12 : 9, 6);
   segment(ankle, foot, 7, 6);
   m.save(); m.translate(foot[0], foot[1]); m.rotate(-swing * 0.3);
-  path('M -7 -5 L 8 -5 L 17 7 Q 5 13 -10 8 Z'); m.restore();
+  path('M -7 -5 L 8 -5 L 17 7 Q 5 13 -10 8 Z'); shoe(); m.restore();
 }
 function shape(t) {
   m.clearRect(0, 0, 1000, 650);
@@ -125,13 +127,14 @@ function render(now) {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = '#858585'; ctx.fillRect(0, 0, width, height);
   shape(time);
+  accessories(time);
   const data = m.getImageData(0, 0, 1000, 650).data;
-  const scale = Math.min(width * 0.94 / 730, height * 0.88 / 470);
-  const ox = width / 2 - 447 * scale, oy = height / 2 - 318 * scale;
+  const scale = Math.min(width * 0.94 / 840, height * 0.92 / 590);
+  const ox = width / 2 - 470 * scale, oy = height / 2 - 318 * scale;
   ctx.fillStyle = '#ff6500'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `bold ${8 * scale}px monospace`;
-  for (let y = 75; y < 575; y += 6) {
-    for (let x = 65; x < 815; x += 4.5) {
+  for (let y = 15; y < 635; y += 6) {
+    for (let x = 45; x < 920; x += 4.5) {
       const at = (y * 1000 + Math.floor(x)) * 4;
       if (data[at + 3] < 110) continue;
       const texture = Math.sin(x * 0.071 + y * 0.039) * 0.5 + 0.5;
