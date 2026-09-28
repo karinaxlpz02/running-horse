@@ -1,52 +1,110 @@
 const canvas = document.querySelector('#horse');
 const ctx = canvas.getContext('2d');
 const mask = document.createElement('canvas');
-mask.width = 800; mask.height = 420;
+mask.width = 1000;
+mask.height = 650;
 const m = mask.getContext('2d', { willReadFrequently: true });
-let time = 0, previous = 0, running = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-let speed = 1, alphabet = 'wildrunequus';
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+let time = 0.7;
+let previous = 0;
 const TAU = Math.PI * 2;
-function ellipse(x,y,rx,ry,angle=0){m.beginPath();m.ellipse(x,y,rx,ry,angle,0,TAU);m.fill();}
-function limb(points,width){m.lineWidth=width;m.lineCap='round';m.lineJoin='round';m.beginPath();points.forEach(([x,y],i)=>i?m.lineTo(x,y):m.moveTo(x,y));m.stroke();}
-function shape(t){
- m.clearRect(0,0,800,420);m.fillStyle=m.strokeStyle='#fff';
- const bob=Math.sin(t*2)*5; m.save();m.translate(0,bob);
- // Four independently phased articulated legs create the suspension and extension of a gallop.
- for(let side=0;side<2;side++){
-  const p=t+side*.8;
-  const hind=Math.sin(p), front=Math.sin(p+1.7);
-  limb([[319,213],[310-hind*42,261],[340+hind*68,302-Math.max(0,-hind)*31],[352+hind*91,335-Math.max(0,-hind)*54]],side?13:10);
-  ellipse(354+hind*91,337-Math.max(0,-hind)*54,12,6,-.2);
-  limb([[477,206],[478+front*39,260],[477+front*74,291-Math.max(0,front)*28],[483+front*104,333-Math.max(0,front)*77]],side?12:9);
-  ellipse(487+front*104,335-Math.max(0,front)*77,12,6,.2);
- }
- ellipse(391,195,109,48,-.06);ellipse(313,199,43,45,-.2);ellipse(473,187,42,57,.23);
- m.beginPath();m.moveTo(453,198);m.bezierCurveTo(479,162,491,110,524,86);m.bezierCurveTo(535,83,550,99,554,117);m.bezierCurveTo(529,144,532,179,492,216);m.closePath();m.fill();
- ellipse(549,108,34,20,.43);ellipse(574,121,29,14,.48);ellipse(591,130,13,12,.15);
- limb([[530,95],[530,70],[540,91]],7);limb([[544,94],[552,72],[554,99]],6);
- // The flowing mane and tail are also part of the glyph mask.
- for(let j=0;j<9;j++){let x=520-j*4,y=97+j*7;limb([[x,y],[x-22,y-8],[x-41-8*Math.sin(t+j*.4),y+6]],4);}
- for(let j=0;j<8;j++){m.lineWidth=5;m.beginPath();m.moveTo(286,180+j*2);m.bezierCurveTo(249,162+j*4,225,188+Math.sin(t+j*.3)*15,174-j*3,168+j*6+Math.sin(t+j*.25)*19);m.stroke();}
- m.globalCompositeOperation='destination-out';ellipse(563,105,3,3);m.globalCompositeOperation='source-over';m.restore();
+const glyphs = ' .:;+=xX%#@';
+function oval(x, y, rx, ry, angle = 0) {
+  m.beginPath(); m.ellipse(x, y, rx, ry, angle, 0, TAU); m.fill();
 }
-function render(now){
- const delta=Math.min((now-previous)/1000,.05);previous=now;if(running)time+=delta*7*speed;
- const rect=canvas.getBoundingClientRect(),dpr=Math.min(devicePixelRatio,2);
- if(canvas.width!==Math.round(rect.width*dpr)||canvas.height!==Math.round(rect.height*dpr)){canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);}
- ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,rect.width,rect.height);shape(time);
- const pixels=m.getImageData(0,0,800,420).data;
- const scale=Math.min(rect.width/800,rect.height/420)*1.13;
- const ox=(rect.width-800*scale)/2,oy=(rect.height-420*scale)/2-5;
- const colors=getComputedStyle(document.body);ctx.fillStyle=colors.getPropertyValue('--ink');ctx.font=`${9*scale}px 'Space Mono',monospace`;ctx.textAlign='center';
- for(let y=60;y<354;y+=9){for(let x=125;x<615;x+=7){if(pixels[(y*800+x)*4+3]>100){const hash=(x*13+y*7)%alphabet.length;ctx.globalAlpha=.55+((x*3+y*11)%10)/23;ctx.fillText(alphabet[hash],ox+x*scale,oy+y*scale);}}}
- // A sparse field of passing typographic dust gives the fixed figure forward momentum.
- ctx.fillStyle=colors.getPropertyValue('--muted');ctx.font=`${9*scale}px monospace`;
- for(let i=0;i<30;i++){const x=((i*137-time*39)%720+720)%720;const y=356+(i%4)*7;ctx.globalAlpha=.12+(i%3)*.06;ctx.fillText(i%3===0?'—':'.',ox+x*scale,oy+y*scale);}
- ctx.globalAlpha=1;requestAnimationFrame(render);
+function path(d) { m.fill(new Path2D(d)); }
+function segment(a, b, startWidth, endWidth) {
+  const angle = Math.atan2(b[1] - a[1], b[0] - a[0]);
+  const x = Math.sin(angle), y = -Math.cos(angle);
+  m.beginPath();
+  m.moveTo(a[0] + x * startWidth, a[1] + y * startWidth);
+  m.lineTo(b[0] + x * endWidth, b[1] + y * endWidth);
+  m.lineTo(b[0] - x * endWidth, b[1] - y * endWidth);
+  m.lineTo(a[0] - x * startWidth, a[1] - y * startWidth);
+  m.closePath(); m.fill(); oval(b[0], b[1], endWidth, endWidth);
 }
-function updatePlay(){document.querySelector('#play-icon').textContent=running?'Ⅱ':'▷';document.querySelector('#play-text').textContent=running?'Pause':'Play';document.querySelector('#play').setAttribute('aria-label',running?'Pause animation':'Play animation');}
-document.querySelector('#play').onclick=()=>{running=!running;updatePlay();};
-document.querySelector('#speed').oninput=e=>{speed=Number(e.target.value);document.querySelector('#pace').textContent=speed.toFixed(1)+'×';};
-document.querySelector('#alphabet').onchange=e=>{alphabet={type:'wildrunequus',symbols:'@#%&*+=:;',binary:'01001101'}[e.target.value];};
-document.querySelector('#theme').onclick=()=>document.body.classList.toggle('light');
-updatePlay();requestAnimationFrame(render);
+function joint(p, length, angle) {
+  return [p[0] + Math.sin(angle) * length, p[1] + Math.cos(angle) * length];
+}
+function leg(t, rear, far) {
+  const phase = t + (far ? 0.65 : 0) + (rear ? 1.9 : 0);
+  const swing = Math.sin(phase);
+  const fold = Math.max(0, Math.cos(phase));
+  const root = rear ? [365, 311] : [608, 307];
+  const knee = joint(root, rear ? 87 : 101, rear ? -0.35 + swing * 0.7 : swing * 0.95);
+  const ankle = joint(knee, rear ? 92 : 94, rear ? 0.3 + swing * 0.9 + fold * 0.95 : swing * 0.75 - fold * 1.9);
+  const foot = joint(ankle, 34, rear ? swing * 0.65 : swing * 0.5 - fold * 0.8);
+  m.fillStyle = far ? '#929292' : '#eeeeee';
+  segment(root, knee, rear ? 31 : 22, rear ? 14 : 10);
+  segment(knee, ankle, rear ? 12 : 9, 6);
+  segment(ankle, foot, 7, 6);
+  m.save(); m.translate(foot[0], foot[1]); m.rotate(-swing * 0.3);
+  path('M -7 -5 L 8 -5 L 17 7 Q 5 13 -10 8 Z'); m.restore();
+}
+function shape(t) {
+  m.clearRect(0, 0, 1000, 650);
+  m.save(); m.translate(0, Math.sin(t * 2) * 9); m.translate(480, 280); m.rotate(Math.sin(t) * 0.018); m.translate(-480, -280);
+  leg(t, true, true); leg(t, false, true);
+  // Swept tail, with independently lagging strands.
+  m.strokeStyle = '#c9c9c9'; m.lineCap = 'round';
+  for (let i = 0; i < 19; i++) {
+    m.lineWidth = 2.5 + (i % 4);
+    m.beginPath(); m.moveTo(333, 254 + i * 1.2);
+    m.bezierCurveTo(270, 234 + i, 217, 252 + Math.sin(t - i * 0.12) * 22, 99 + i * 3, 276 + i * 3 + Math.sin(t - i * 0.16) * 25); m.stroke();
+  }
+  // Back, barrel, flank, shoulder and chest form a single continuous silhouette.
+  m.fillStyle = '#e8e8e8';
+  path('M 319 257 C 334 223 375 222 407 236 C 452 252 503 247 554 236 C 583 224 600 222 622 237 C 652 252 664 288 651 320 C 639 348 617 357 589 353 C 559 356 525 365 486 365 C 449 365 425 347 398 341 C 363 353 332 334 321 305 C 315 289 310 274 319 257 Z');
+  const muscle = m.createRadialGradient(574, 280, 9, 570, 294, 95);
+  muscle.addColorStop(0, '#ffffff'); muscle.addColorStop(1, '#aaaaaa');
+  m.fillStyle = muscle; oval(580, 289, 58, 65, -0.3);
+  m.fillStyle = '#dedede'; oval(362, 280, 44, 49, 0.2);
+  // Long sloping neck, defined throat latch, cheek and tapered muzzle.
+  m.fillStyle = '#eeeeee';
+  path('M 548 258 C 582 219 604 164 643 131 C 658 119 682 118 698 131 L 715 155 C 695 172 682 181 673 205 C 659 237 657 276 638 315 C 624 339 601 343 589 326 C 606 290 599 266 582 257 Z');
+  path('M 662 134 C 671 114 698 117 713 131 C 724 143 729 151 742 166 L 784 198 C 792 205 793 215 785 223 C 777 231 760 229 748 220 L 712 199 C 690 200 674 188 671 170 Z');
+  oval(699, 170, 23, 26, -0.3);
+  path('M 676 132 Q 662 104 672 89 Q 685 99 688 125 Z');
+  path('M 696 127 Q 694 100 705 91 Q 713 107 707 137 Z');
+  m.strokeStyle = '#bcbcbc';
+  for (let i = 0; i < 24; i++) {
+    const u = i / 23, x = 670 - 99 * u, y = 127 + 117 * u;
+    m.lineWidth = 3; m.beginPath(); m.moveTo(x, y);
+    m.bezierCurveTo(x - 17, y - 9, x - 30, y + 4, x - 39 - Math.sin(t - u * 4) * 10, y + 5 + Math.cos(t + u * 5) * 9); m.stroke();
+  }
+  leg(t, true, false); leg(t, false, false);
+  // Small negative spaces preserve the eye, nostril and mouth at glyph resolution.
+  m.globalCompositeOperation = 'destination-out';
+  oval(716, 155, 4.4, 3.5, -0.2); oval(777, 207, 4, 3, 0.5);
+  m.lineWidth = 2.8; m.beginPath(); m.moveTo(765, 220); m.lineTo(784, 221); m.stroke();
+  m.globalCompositeOperation = 'source-over'; m.restore();
+}
+function render(now) {
+  const delta = previous ? Math.min((now - previous) / 1000, 0.05) : 0;
+  previous = now;
+  if (!reducedMotion.matches) time += delta * 6.7;
+  const width = innerWidth, height = innerHeight, dpr = Math.min(devicePixelRatio || 1, 2);
+  if (canvas.width !== Math.round(width * dpr) || canvas.height !== Math.round(height * dpr)) {
+    canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, width, height);
+  shape(time);
+  const data = m.getImageData(0, 0, 1000, 650).data;
+  const scale = Math.min(width * 0.94 / 730, height * 0.88 / 470);
+  const ox = width / 2 - 447 * scale, oy = height / 2 - 318 * scale;
+  ctx.fillStyle = '#ff6500'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.font = `bold ${7.2 * scale}px monospace`;
+  for (let y = 75; y < 575; y += 6) {
+    for (let x = 65; x < 815; x += 4.5) {
+      const at = (y * 1000 + Math.floor(x)) * 4;
+      if (data[at + 3] < 110) continue;
+      const texture = Math.sin(x * 0.071 + y * 0.039) * 0.5 + 0.5;
+      const density = data[at] / 255;
+      const index = Math.min(glyphs.length - 1, Math.floor(2 + density * 5 + texture * 3));
+      ctx.globalAlpha = 0.65 + density * 0.35;
+      ctx.fillText(glyphs[index], ox + x * scale, oy + y * scale);
+    }
+  }
+  ctx.globalAlpha = 1; requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
