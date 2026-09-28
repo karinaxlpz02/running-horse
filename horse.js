@@ -9,6 +9,34 @@ let time = 0.7;
 let previous = 0;
 const TAU = Math.PI * 2;
 const glyphs = ' .:;+=xX%#@';
+const variations = ['Galloping horse', 'Long horse', 'Wide horse', 'Tiny head horse', 'Noodle horse', 'Upside-down horse'];
+let variation = 0;
+function nextHorse() {
+  variation = (variation + 1) % variations.length;
+  canvas.setAttribute('aria-label', variations[variation] + '. Click or press Enter for the next horse.');
+}
+canvas.addEventListener('click', nextHorse);
+canvas.addEventListener('keydown', event => {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    if (!event.repeat) nextHorse();
+  }
+});
+function memePoint(x, y) {
+  if (variation === 1) {
+    // Stretch only the barrel; keep the face, tail and legs recognizable.
+    const stretch = x < 390 ? 0 : x > 565 ? 190 : (x - 390) * 190 / 175;
+    return [447 + (x + stretch - 542) * 0.79, 318 + (y - 318) * 0.79];
+  }
+  if (variation === 2) return [x, 340 + (y - 318) * 0.43];
+  if (variation === 3) {
+    const weight = Math.max(0, Math.min(1, (x - 610) / 55)) * Math.max(0, Math.min(1, (270 - y) / 45));
+    return [x + (693 - x) * weight * 0.68, y + (222 - y) * weight * 0.68];
+  }
+  if (variation === 4) return [x, y + Math.sin((x - 300) * 0.018 + time) * 33];
+  if (variation === 5) return [894 - x, 636 - y];
+  return [x, y];
+}
 function oval(x, y, rx, ry, angle = 0) {
   m.beginPath(); m.ellipse(x, y, rx, ry, angle, 0, TAU); m.fill();
 }
@@ -110,7 +138,8 @@ function render(now) {
       const density = data[at] / 255;
       const index = Math.min(glyphs.length - 1, Math.floor(1 + density * 7 + texture * 1.5));
       ctx.globalAlpha = 0.65 + density * 0.35;
-      ctx.fillText(glyphs[index], ox + x * scale, oy + y * scale);
+      const [px, py] = memePoint(x, y);
+      ctx.fillText(glyphs[index], ox + px * scale, oy + py * scale);
     }
   }
   ctx.globalAlpha = 1; requestAnimationFrame(render);
